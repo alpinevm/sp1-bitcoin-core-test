@@ -1,0 +1,47 @@
+[package]
+name = "bitcoin-core-rs"
+version = "0.1.0"
+edition = "2021"
+description = "Bitcoin Core src/consensus Rust bindings."
+keywords = [ "bitcoin", "bitcoinconsensus" ]
+readme = "README.md"
+exclude = [
+        "/vendor/bitcoin/.github/**",
+        "/vendor/bitcoin/.tx/**",
+        "/vendor/bitcoin/build-aux/**",
+        "/vendor/bitcoin/contrib/**",
+        "/vendor/bitcoin/depends/**",
+        "/vendor/bitcoin/doc/**",
+        "/vendor/bitcoin/share/**",
+        "/vendor/bitcoin/test/**",
+        "/vendor/bitcoin/src/bench/**",
+        "/vendor/bitcoin/src/config/**",
+        "/vendor/bitcoin/src/leveldb/**",
+        "/vendor/bitcoin/src/policy/**",
+        "/vendor/bitcoin/src/qt/**",
+        "/vendor/bitcoin/src/rpc/**",
+        "/vendor/bitcoin/src/support/**",
+        "/vendor/bitcoin/src/test/**",
+        "/vendor/bitcoin/src/univalue/**",
+        "/vendor/bitcoin/src/wallet/**",
+        "/vendor/bitcoin/src/zmq/**"
+        ]
+build = "build.rs"
+
+[features]
+default = ["std", "risczero"]
+std = []
+external-secp = []
+risczero = []
+
+[dependencies]
+autocxx = "0.27.0"
+cxx = "1.0"
+
+[dev-dependencies]
+hex = "0.4"
+hex-literal = "0.4"
+
+[build-dependencies]
+autocxx-build = "0.27.0"
+miette = { version = "5", features = ["fancy"] } # optional but gives nicer error messages!
