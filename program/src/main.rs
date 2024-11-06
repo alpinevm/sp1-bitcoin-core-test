@@ -5,8 +5,6 @@
 #![no_main]
 sp1_zkvm::entrypoint!(main);
 
-use bitcoin_core_rs::crypto;
-
 pub fn main() {
     // Read an input to the program.
     //
@@ -15,7 +13,7 @@ pub fn main() {
     let hash = sp1_zkvm::io::read::<[u8; 32]>();
     let preimage = sp1_zkvm::io::read::<Vec<u8>>();
 
-    let computed_hash = crypto::sha256(&preimage);
+    let computed_hash = bitcoin_core_rs::sha256(&preimage);
     assert_eq!(hash, computed_hash);
 
     // Encode the public values of the program.

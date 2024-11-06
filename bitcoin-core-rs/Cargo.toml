@@ -35,13 +35,10 @@ external-secp = []
 risczero = []
 
 [dependencies]
-autocxx = "0.27.0"
-cxx = "1.0"
 
 [dev-dependencies]
 hex = "0.4"
 hex-literal = "0.4"
 
 [build-dependencies]
-autocxx-build = "0.27.0"
-miette = { version = "5", features = ["fancy"] } # optional but gives nicer error messages!
+cc = "1.0"
