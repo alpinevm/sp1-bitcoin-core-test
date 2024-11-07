@@ -3,21 +3,22 @@ set -e
 
 function usage() {
     echo
-    echo "Usage: script OPTIONS [bitcoin-core-version]"
+    echo "Usage: $(basename "$0") [OPTIONS] bitcoin-core-version"
     echo
     echo "OPTIONS:"
     echo
     echo " -f    Vendor even if there are local changes to the rust-bitcoinconsensus git index"
-    echo " -h    Print this help an exit"
+    echo " -h    Print this help and exit"
     echo
     echo "Example:"
     echo
-    echo "    vendor-bitcoin-core v0.21.2"
+    echo "    $(basename "$0") -f v0.21.2"
     echo
 
     exit 0
 }
 
+# Check if the user asked for help or didn't provide a version argument
 if (($# < 1)) || [ "$1" == '-h' ]; then
    usage
 fi
@@ -30,27 +31,22 @@ else
     CORE_VENDOR_GIT_ROOT="$(realpath "$CORE_VENDOR_GIT_ROOT")"
 fi
 
-DEFAULT_DEPEND_DIR="vendor"
-DEFAULT_CORE_REPO=https://github.com/bitcoin/bitcoin.git
+DEFAULT_DEPEND_DIR="src/native/vendor"  # Specify the correct base directory here
+DEFAULT_CORE_REPO="https://github.com/bitcoin/bitcoin.git"
 
-: "${CORE_VENDOR_DEPEND_DIR:=$DEFAULT_DEPEND_DIR}"
-: "${CORE_VENDOR_REPO:=$DEFAULT_CORE_REPO}"
+# Set up directory and repo variables with fallback to defaults
+CORE_VENDOR_DEPEND_DIR="${CORE_VENDOR_DEPEND_DIR:-$DEFAULT_DEPEND_DIR}"
+CORE_VENDOR_REPO="${CORE_VENDOR_REPO:-$DEFAULT_CORE_REPO}"
 
-# CP_NOT_CLONE lets us just copy a directory rather than git cloning.
-# This is usually a bad idea, since it will bring in build artifacts or any other
-# junk from the source directory, but may be useful during development or CI.
-: "${CORE_VENDOR_CP_NOT_CLONE:=no}"
+# Avoid duplicating paths in the target directory
+DIR="$CORE_VENDOR_DEPEND_DIR/bitcoin"
 
-echo "Using depend directory $CORE_VENDOR_DEPEND_DIR. Set CORE_VENDOR_DEPEND_DIR to override."
-echo "Using bitcoin repository $CORE_VENDOR_REPO. Set CORE_VENDOR_REPO to override."
-
-# Parse command-line options
+# Command-line option parsing
 CORE_REV=""
 FORCE=no
 while (( "$#" )); do
     case "$1" in
     -h)
-        echo ""
         usage
         ;;
     -f)
@@ -67,64 +63,60 @@ while (( "$#" )); do
     shift
 done
 
-echo
-if [ "$CORE_REV" ]; then
-    echo "Vendoring Bitcoin Core version: $CORE_REV"
-else
-    echo "WARNING: No Bitcoin Core revision specified. Will use whatever we find at the git repo."
+# Ensure the version is specified
+if [ -z "$CORE_REV" ]; then
+    echo "ERROR: You must specify a Bitcoin Core version to vendor."
+    usage
 fi
+
+echo "Vendoring Bitcoin Core version: $CORE_REV to $DIR"
 echo
 
-# Check if we will do anything destructive.
-
+# Check for uncommitted changes
 if [ "$FORCE" == "no" ]; then
     if ! git diff --quiet -- "*.rs"; then
-        echo "ERROR: There appear to be modified source files. Check these in or pass -f (some source files will be modified to have symbols renamed)."
+        echo "ERROR: There appear to be modified source files. Check these in or pass -f."
         exit 2
     fi
     if ! git diff --quiet -- "$CORE_VENDOR_DEPEND_DIR"; then
-        echo "ERROR: The depend directory appears to be modified. Check it in or pass -f (this directory will be deleted)."
+        echo "ERROR: The depend directory appears to be modified. Check it in or pass -f."
         exit 2
     fi
 fi
 
-DIR=./bitcoin
-
-pushd "$CORE_VENDOR_DEPEND_DIR" > /dev/null
+# Create and clean the target directory
+mkdir -p "$CORE_VENDOR_DEPEND_DIR"
 rm -rf "$DIR" || true
 
-# Clone the repo. As a special case, if the repo is a local path and we have
-# not specified a revision, just copy the directory rather than using 'git clone'.
-# This lets us use non-git repos or dirty source trees as secp sources.
+# Clone the repo or copy from a local directory
 if [ "$CORE_VENDOR_CP_NOT_CLONE" == "yes" ]; then
     cp -r "$CORE_VENDOR_REPO" "$DIR"
-    chmod -R +w "$DIR" # cp preserves write perms, which if missing will cause patch to fail
+    chmod -R +w "$DIR"
 else
     git clone "$CORE_VENDOR_REPO" "$DIR"
 fi
 
-# Check out specified revision
-pushd "$DIR" > /dev/null
-if [ -n "$CORE_REV" ]; then
-    git checkout "$CORE_REV"
-fi
+# Check out the specified version
+cd "$DIR"
+git checkout "$CORE_REV"
 SOURCE_REV=$(git rev-parse HEAD || echo "[unknown revision from $CORE_VENDOR_REPO]")
 
-# Create config directory and header needed to compile
-# some of the C++ code
-mkdir -p src/config
+# Inject configuration file into the correct src/config directory of Bitcoin Core
+mkdir -p "src/config"
 cat > "src/config/bitcoin-config.h" << 'EOL'
 #ifndef BITCOIN_CONFIG_H
 #define BITCOIN_CONFIG_H
 
+// Configuration settings for Bitcoin Core (customized for vendoring)
+
 #endif // BITCOIN_CONFIG_H
 EOL
 
+# Remove .git directory for vendoring
 rm -rf .git/ || true
-popd
 
-# Record revision
-echo "# This file was automatically created by $(basename "$0")" > ./bitcoin-HEAD-revision.txt
-echo "$SOURCE_REV" >> ./bitcoin-HEAD-revision.txt
+# Record revision information
+echo "# This file was automatically created by $(basename "$0")" > "$CORE_VENDOR_DEPEND_DIR/bitcoin-HEAD-revision.txt"
+echo "$SOURCE_REV" >> "$CORE_VENDOR_DEPEND_DIR/bitcoin-HEAD-revision.txt"
 
-popd > /dev/null
+echo "Bitcoin Core vendoring completed successfully in $CORE_VENDOR_DEPEND_DIR."

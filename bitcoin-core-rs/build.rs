@@ -40,9 +40,7 @@ fn main() {
     }
 
     base_config
-        .cpp(true)
         .flag("-std=c++20")
-        .flag("-stdlib=libc++")
         .include("src/native/vendor/bitcoin/src")
         .file("src/native/vendor/bitcoin/src/crypto/sha256.cpp")
         .file("src/native/sha256_wrapper.cpp")
