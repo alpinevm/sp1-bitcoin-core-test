@@ -1,6 +1,6 @@
 [package]
 version = "0.1.0"
-name = "btc-core-hash-program"
+name = "bitcoin-core-header-check-program"
 edition = "2021"
 
 [dependencies]

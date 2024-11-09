@@ -10,15 +10,21 @@ pub fn main() {
     //
     // Behind the scenes, this compiles down to a custom system call which handles reading inputs
     // from the prover.
-    let hash = sp1_zkvm::io::read::<[u8; 32]>();
-    let preimage = sp1_zkvm::io::read::<Vec<u8>>();
+    let serialized_header = sp1_zkvm::io::read::<Vec<u8>>();
+    let serialized_header_array: [u8; 80] = serialized_header.try_into().unwrap();
 
-    let computed_hash = bitcoin_core_rs::sha256(&preimage);
-    assert_eq!(hash, computed_hash);
+    // hash it for fun
+    let hash = bitcoin_core_rs::sha256(&serialized_header_array);
+    println!("Hash: {:?}", hash);
+    println!("Checking header...");
+
+    assert!(bitcoin_core_rs::check_pow(
+        serialized_header_array,
+        bitcoin_core_rs::MAINNET_POW_LIMIT
+    ));
 
     // Encode the public values of the program.
-    let mut bytes = hash.to_vec();
-    bytes.extend(preimage);
+    let bytes = serialized_header_array.to_vec();
 
     // Commit to the public values of the program. The final proof will have a commitment to all the
     // bytes that were committed to.
